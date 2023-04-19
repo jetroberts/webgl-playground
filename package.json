@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "dev": "tsc && node out/server.js"
+    "dev": "tsc && node server.js"
   },
   "dependencies": {
     "vscode-html-languageservice": "^5.0.4"

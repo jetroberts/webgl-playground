@@ -1,16 +1,25 @@
 import * as fs from 'node:fs';
 import { ReadStream } from 'node:fs';
 import * as http from 'node:http';
-import * as path from 'node:path';
-import { resourceLimits } from 'node:worker_threads';
 
 const PORT = 8000;
 
-type Mime = {
-    [id: string]: string
+type Mime = 
+    "application/octet-stream" | 
+    'text/html; charset=UTF-8' |
+    'application/javascript' |
+    'text/css' |
+    'image/png' |
+    'image/jpg' |
+    'image/gif' |
+    'image/x-icon' |
+    'image/svg+xml' 
+
+type MimeType = {
+    [id: string]: Mime
 }
 
-const MIME_TYPES: Mime = {
+const MIME_TYPES: MimeType = {
     default: 'application/octet-stream',
     html: 'text/html; charset=UTF-8',
     js: 'application/javascript',
@@ -22,37 +31,35 @@ const MIME_TYPES: Mime = {
     svg: 'image/svg+xml',
 };
 
-const STATIC_PATH = path.join(process.cwd(), '/static');
-const OUT_PATH = path.join(process.cwd(), '/out')
-
-const toBool = [() => true, () => false];
-
 type FetchFile = {
-    readStream: ReadStream, 
-    extension: string,
+    readStream: ReadStream | null, 
+    mimeType: Mime,
     found: boolean
 }
 
 const fetchFileFromURL = async (url: string): Promise<FetchFile> => {
-    const extension = getExtension(url);
+    const mimeType = getMimeType(url);
     const filePath = getFilePath(url)
 
     const fileExists = fs.existsSync(filePath);
     if(!fileExists) {
        return {
-        readStream: new ReadStream(),
-        extension,
+        readStream: null,
+        mimeType,
         found: false
        } 
     }
 
-    const readStream = fs.createReadStream(filePath);
-
-    return { readStream, extension, found: true };
+    try {
+        const readStream = fs.createReadStream(filePath);
+        return { readStream, mimeType, found: true}
+    } catch (e: unknown) {
+        console.error(e)
+        return { readStream: null, mimeType, found: true };
+    }
 };
 
-const getExtension = (url: string): string => {
-    // does it end with / -> return html
+const getMimeType = (url: string): Mime => {
     if (url.endsWith("/")) {
         return MIME_TYPES.html
     }
@@ -62,19 +69,24 @@ const getExtension = (url: string): string => {
         return MIME_TYPES.default
     }
 
-    return url.substring(index)
+    const ending = url.substring(index + 1)
+    const mimeType = MIME_TYPES[ending]
+    if (mimeType === undefined) {
+        return MIME_TYPES.default
+    }
+
+    return mimeType
 }
 
 
 const getFilePath = (url: string): string => {
     const paths = [process.cwd()]
     if (url.endsWith("/")) {
-        paths.push("static")
         paths.push("index.html")
         return paths.join("/") 
     }
 
-    paths.push(url)
+    paths.push(url.replace("/", ""))
     return paths.join("/")
 }
 
@@ -84,11 +96,19 @@ const server = http.createServer(async (req, res) => {
         return
     }
 
-    const { readStream, found, extension } = await fetchFileFromURL(req.url);
-    const statusCode = found ? 200 : 404;
-    readStream.pipe(res);
-
-    console.log(`${req.method} ${req.url} ${statusCode}`);
+    const { readStream, found, mimeType} = await fetchFileFromURL(req.url);
+    const statusCode = found || readStream === null ? 200 : 404;
+    res.writeHead(statusCode, {
+        'Content-Type': mimeType,
+    })
+    try {
+        if(readStream !== null) {
+            readStream.pipe(res);
+        }
+        console.log(`${req.method} ${req.url} ${statusCode}`);
+    } catch (e: unknown) {
+        console.error(e)
+    }
 });
 
 server.listen(PORT)
