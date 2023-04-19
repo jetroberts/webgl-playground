@@ -5,6 +5,7 @@ in vec4 a_position;
 
 void main() {
     gl_Position = a_position;
+    gl_PointSize = 5.0;
 }
 `
 
@@ -58,7 +59,6 @@ function main() {
     // now that the program is setup 
     // I need to create some data and supply it via a buffer to the GPU
 
-    debugger;
     const positionLocation = gl.getAttribLocation(program, "a_position")
     const positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
@@ -84,7 +84,7 @@ function main() {
     gl.useProgram(program);
     gl.bindVertexArray(vertexArray)
 
-    gl.drawArrays(gl.TRIANGLES, 0, 3)
+    gl.drawArrays(gl.POINTS, 0, 3)
 }
 
 function createShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null {
