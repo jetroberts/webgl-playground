@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "dev": "tsc && node out/server.js"
+  },
+  "dependencies": {
+    "vscode-html-languageservice": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11"
+  },
+  "type": "module"
+}
